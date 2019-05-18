@@ -1,43 +1,42 @@
 node{
      
-    stage('SCM Checkout'){
-        git url: 'https://github.com/devopstrainingbanglore/gradle-web-app.git',branch: 'master'
+     stage('SCM Checkout'){
+        git 'https://github.com/UganderD/maven-web-app-pipeline.git'
     }
     
-    stage("Gradle Clean Build"){
-      def GradleHome = tool name: 'Gradle-4.9', type: 'gradle'
-      def gradleCMD = "${GradleHome}/bin/gradle"
-      sh "${gradleCMD} clean build"
-      
-    } 
-    /**
-    stage('Gradle Clean Build With Wrapper'){
-        //With out below permision clean build will not work
-        sh 'chmod +x gradlew'
-        sh './gradlew clean build'
-    }
-    **/
+     stage('Compile-Package'){
+          //Get maven home path
+          def mvnHOME = tool name: 'M2_HOME', type: 'maven'
+          sh "${mvnHOME}/bin/mvn package"
+}
+
+
+     stage('Deploy-Tomcat'){
+          sshagent(['Deploy-Tomcat']) {
+          sh  'scp -o StrictHostKeyChecking=no  target/*.war ec2-user@172.31.31.201:/opt/apache-tomcat-9.0.16/webapps/'
+}
+       }
     
-    stage('Build Docker Image'){
-        sh 'docker build -t dockerhandson/gradle-web-app .'
+     stage('Build Docker Image'){
+          sh 'docker build -t ugander/maven-web-app .'
     }
     
-    stage('Push Docker Image'){
-        withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
-          sh "docker login -u dockerhandson -p ${Docker_Hub_Pwd}"
+     stage('Push Docker Image'){
+          withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
+          sh "docker login -u ugander -p ${Docker_Hub_Pwd}"
         }
-        sh 'docker push dockerhandson/gradle-web-app'
+          sh 'docker push ugander/maven-web-app'
      }
      
       stage('Run Docker Image In Dev Server'){
         
-        def dockerRun = ' docker run  -d -p 8080:8080 --name gradle-web-app dockerhandson/gradle-web-app'
+          def dockerRun = ' docker run  -d -p 8080:8080 --name maven-web-app ugander/maven-web-app'
          
-         sshagent(['DOCKER_SERVER']) {
-          sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.20.72 docker stop gradle-web-app || true'
-          sh 'ssh  ubuntu@172.31.20.72 docker rm gradle-web-app || true'
-          sh 'ssh  ubuntu@172.31.20.72 docker rmi -f  $(docker images -q) || true'
-          sh "ssh  ubuntu@172.31.20.72 ${dockerRun}"
+        sshagent(['DOCKER_SERVER']) {
+          sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.23.167 docker stop maven-web-app || true'
+          sh 'ssh  ubuntu@172.31.23.167 docker rm maven-web-app || true'
+          sh 'ssh  ubuntu@172.31.23.167 docker rmi -f  $(docker images -q) || true'
+          sh "ssh  ubuntu@172.31.23.167 ${dockerRun}"
        }
        
     }
