@@ -1,1 +1,1 @@
-# gradle-web-app
+# maven-web-app-pipeline
